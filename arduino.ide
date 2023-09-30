@@ -1,0 +1,87 @@
+#include <WiFi.h>
+#include <ESPmDNS.h>
+#include <WebServer.h>
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+
+#define DHT_PIN_1 23 // Pino GPIO onde o primeiro sensor DHT22 está conectado
+#define DHT_PIN_2 22 // Pino GPIO onde o segundo sensor DHT22 está conectado
+
+#define DHT_TYPE DHT22
+
+const char* ssid = "*****"; // Nome da sua rede Wi-Fi
+const char* password = "*****"; // Senha da sua rede Wi-Fi
+
+DHT dht1(DHT_PIN_1, DHT_TYPE);
+DHT dht2(DHT_PIN_2, DHT_TYPE);
+
+WebServer server(80);
+
+void handleRoot() {
+  float humidity1 = dht1.readHumidity();
+  float temperature1 = dht1.readTemperature();
+
+  float humidity2 = dht2.readHumidity();
+  float temperature2 = dht2.readTemperature();
+
+  String response = "Sensor 1 - Umidade: " + String(humidity1, 1) + "% | Temperatura: " + String(temperature1, 1) + "°C\n";
+  response += "Sensor 2 - Umidade: " + String(humidity2, 1) + "% | Temperatura: " + String(temperature2, 1) + "°C";
+
+  server.send(200, "text/plain", response);
+}
+
+void handleNotFound() {
+  String message = "Página não encontrada";
+  server.send(404, "text/plain", message);
+}
+
+void setup() {
+  Serial.begin(115200);
+  dht1.begin();
+  dht2.begin();
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.print("Conectado a: ");
+  Serial.println(ssid);
+  Serial.print("Endereço IP: ");
+  Serial.println(WiFi.localIP());
+
+  if (!MDNS.begin("esp32")) {
+    Serial.println("Erro ao iniciar o mDNS");
+  }
+
+  server.on("/", handleRoot);
+  server.onNotFound(handleNotFound);
+
+  server.begin();
+  Serial.println("Servidor HTTP iniciado");
+}
+
+void loop() {
+  server.handleClient();
+
+  float humidity1 = dht1.readHumidity();
+  float temperature1 = dht1.readTemperature();
+
+  float humidity2 = dht2.readHumidity();
+  float temperature2 = dht2.readTemperature();
+
+  Serial.print("Sensor 1 - Umidade (%): ");
+  Serial.print(humidity1, 1);
+  Serial.print("\t");
+  Serial.print("Temperatura (°C): ");
+  Serial.println(temperature1, 1);
+
+  Serial.print("Sensor 2 - Umidade (%): ");
+  Serial.print(humidity2, 1);
+  Serial.print("\t");
+  Serial.print("Temperatura (°C): ");
+  Serial.println(temperature2, 1);
+
+  delay(2000); // Aguarda 2 segundos entre as leituras
+}
